@@ -96,28 +96,31 @@ class NeuralNetwork:
 			np.reshape(predictions, [len(labels)])
 		)
 
-	def allSuccess(self, predictions, labels, limit = 0.5):
+	def stats(self, predictions, labels, limit = 0.5):
 		predictions[predictions < limit] = 0
 		predictions[predictions >= limit] = 1
-		success = len(predictions[predictions == labels])
-		print("success (all) : " + str(success) + "/" + str(len(labels)))
-		print("rate (all) : " + str(int(success / len(labels) * 100)) + "%")
+		truePositives = len(predictions[(predictions == labels) & (labels == 1)])
+		trueNegatives = len(predictions[(predictions == labels) & (labels == 0)])
+		falsePositives = len(predictions[(predictions != labels) & (predictions == 1)])
+		falseNegatives = len(predictions[(predictions != labels) & (predictions == 0)])
 
-	def positiveSuccess(self, predictions, labels, limit = 0.5):
-		predictions[predictions < limit] = 0
-		predictions[predictions >= limit] = 1
-		positives = labels[labels == 1]
-		success = len(predictions[(predictions == labels) & (labels == 1)])
-		print("success (positive) : " + str(success) + "/" + str(len(positives)))
-		print("rate (positive) : " + str(int(success / len(positives) * 100)) + "%")
+		precision = 0
+		recall = 0
+		f1 = 0
+	
+		if truePositives > 0:
+			precision = truePositives / (truePositives+falsePositives)
+			recall = truePositives / (truePositives+falseNegatives)
+			f1 = 2 * (recall*precision) / (recall+precision)
 
-	def negativeSuccess(self, predictions, labels, limit = 0.5):
-		predictions[predictions < limit] = 0
-		predictions[predictions >= limit] = 1
-		negatives = labels[labels == 0]
-		success = len(predictions[(predictions == labels) & (labels == 0)])
-		print("success (negative) : " + str(success) + "/" + str(len(negatives)))
-		print("rate (negative) : " + str(int(success / len(negatives) * 100)) + "%")
+		return precision,recall,f1
+	
+
+	def printStats(self, predictions, labels, limit = 0.5):
+		precision,recall,f1 = self.stats(predictions, labels, limit)
+		print("precision : " + str(precision) + " (" + str(int(precision * 100)) + "%)")
+		print("recall : " + str(recall) + " (" + str(int(recall * 100)) + "%)")
+		print("f1 score : " + str(f1))
 
 	def check(self, data, limit = 0.5, regularization = 0.0, keepProb = 1.0):
 		batchInput, batchOutput = data.testBatch()
@@ -129,11 +132,37 @@ class NeuralNetwork:
 			self.keepProb: keepProb
 		})
 		metric = self.roc_auc_score(batchOutput[:], p[:])
-		self.allSuccess(p[:], batchOutput[:], limit)
-		self.positiveSuccess(p[:], batchOutput[:], limit)
-		self.negativeSuccess(p[:], batchOutput[:], limit)
+		self.printStats(p[:], batchOutput[:], limit)
 		print("cost : " + str(cost))
-		print("metric : " + str(metric))
+		#print("metric : " + str(metric))
+	
+	def plotLines(self, arrays, labels):
+		fig = plt.figure(figsize=(10, 8))
+		lines = []
+		for i in range(len(arrays)):
+			lines.append(plt.plot(arrays[i], label=labels[i]))
+		plt.legend(loc='upper left')
+		plt.show()
+	
+	def statsPlot(self, data, regularization = 0.0, keepProb = 1.0):
+		f1s = []
+		precisions = []
+		recalls = []
+
+		batchInput, batchOutput = data.testBatch()
+		predictions, cost = self.session.run([self.predictions, self.ncost], feed_dict={
+			self.batchSize: len(batchOutput),
+			self.inputs: batchInput,
+			self.labels: batchOutput,
+			self.regularization: regularization,
+			self.keepProb: keepProb
+		})
+		for limit in np.arange(0.01, 1.0, 0.01):
+			p,r,f = self.stats(np.copy(predictions), np.copy(batchOutput), limit=limit)
+			f1s.append(f)
+			precisions.append(p)
+			recalls.append(r)
+		self.plotLines([precisions, recalls, f1s], ["precision", "recall", "f1 score"])
 
 	def tsnePlot(self, data, limit = 0.5, regularization = 0.0, keepProb = 1.0):
 		batchInput, batchOutput = data.testBatch()
