@@ -90,6 +90,41 @@ class NeuralNetwork:
 		cost = cost / epoch
 		print("cost : " + str(cost))
 	
+	def getCost(self, data):
+		batchInput, batchOutput = data.trainBatch()
+		trainCost = self.session.run(self.cost, feed_dict={
+			self.batchSize: len(batchOutput),
+			self.inputs: batchInput,
+			self.labels: batchOutput,
+			self.regularization:0,
+			self.keepProb:1.0
+		})
+		batchInput, batchOutput = data.testBatch(100)
+		testCost = self.session.run(self.cost, feed_dict={
+			self.batchSize: len(batchOutput),
+			self.inputs: batchInput,
+			self.labels: batchOutput,
+			self.regularization:0,
+			self.keepProb:1.0
+		})
+		return trainCost, testCost
+
+	def plotCostByReg(self, data, epoch = 5000, learningRate = 0.01, minReg = 0.00, maxReg = 1.0, step = 2):
+		trainCost = []
+		testCost = []
+		xticks = []
+		reg = minReg
+		while reg < maxReg:
+			print("reg " + str(reg) + "/" + str(maxReg))
+			self.reinit()
+			self.train(data, epoch, reg, learningRate, 1.0)
+			trainC, testC = self.getCost(data)
+			trainCost.append(trainC)
+			testCost.append(testC)
+			xticks.append(reg)
+			reg += step
+		self.plotLines([trainCost, testCost], ["train cost", "test cost"], xticks)
+	
 	def roc_auc_score(self, labels, predictions):
 		return roc_auc_score(
 			np.reshape(labels, [len(labels)]),
@@ -136,18 +171,24 @@ class NeuralNetwork:
 		print("cost : " + str(cost))
 		#print("metric : " + str(metric))
 	
-	def plotLines(self, arrays, labels):
-		fig = plt.figure(figsize=(10, 8))
+	def plotLines(self, arrays, labels, xticks):
+		fig = plt.figure(figsize=(15, 8))
 		lines = []
 		for i in range(len(arrays)):
 			lines.append(plt.plot(arrays[i], label=labels[i]))
+
+		plt.xticks(np.arange(len(xticks)), xticks)
+		ax = plt.gca()
+		ax.tick_params(axis = 'x', which = 'major', labelsize = 6)
 		plt.legend(loc='upper left')
+		plt.tight_layout()
 		plt.show()
 	
 	def statsPlot(self, data, regularization = 0.0, keepProb = 1.0):
 		f1s = []
 		precisions = []
 		recalls = []
+		xticks = []
 
 		batchInput, batchOutput = data.testBatch()
 		predictions, cost = self.session.run([self.predictions, self.ncost], feed_dict={
@@ -157,12 +198,13 @@ class NeuralNetwork:
 			self.regularization: regularization,
 			self.keepProb: keepProb
 		})
-		for limit in np.arange(0.01, 1.0, 0.01):
+		for limit in np.arange(0.01, 1.0, 0.02):
 			p,r,f = self.stats(np.copy(predictions), np.copy(batchOutput), limit=limit)
 			f1s.append(f)
 			precisions.append(p)
 			recalls.append(r)
-		self.plotLines([precisions, recalls, f1s], ["precision", "recall", "f1 score"])
+			xticks.append(limit)
+		self.plotLines([precisions, recalls, f1s], ["precision", "recall", "f1 score"], xticks)
 
 	def tsnePlot(self, data, limit = 0.5, regularization = 0.0, keepProb = 1.0):
 		batchInput, batchOutput = data.testBatch()

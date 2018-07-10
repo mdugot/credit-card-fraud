@@ -37,7 +37,7 @@ class Data:
 		np.random.shuffle(batchIndex)
 		return self.data[batchIndex], self.output[batchIndex]
 
-	def testBatch(self):
+	def testBatch(self, sizeFalse = 1000):
 		falseTestIndexSample = np.random.choice(self.falseIndex_test, 1000, replace=False)
 		batchIndex = np.append(self.trueIndex_test, falseTestIndexSample)
 		np.random.shuffle(batchIndex)
