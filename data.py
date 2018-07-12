@@ -1,6 +1,8 @@
 from tqdm import tqdm
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 import numpy as np
 
 class Data:
@@ -50,7 +52,7 @@ class Data:
 		return self.data[sample]
 
 	def tsnePlot(self):
-		tsneData = TSNE(n_components=2).fit_transform(self.sampleData(3000))
+		tsneData = TSNE(n_components=2).fit_transform(self.sampleData(1000))
 		fig = plt.figure(figsize=(10, 8))
 		i = 0
 		for d in tqdm(tsneData):
@@ -61,4 +63,8 @@ class Data:
 			else:
 				plt.plot(x, y, 'bo')
 			i += 1
+		bo = mlines.Line2D([], [], color='blue', marker='o', linestyle='None', markersize=10, label='normal transaction')
+		ro = mlines.Line2D([], [], color='red', marker='o', linestyle='None', markersize=10, label='fraud transaction')
+		plt.legend(handles=[ro, bo])
+		plt.title("Data visualization with t-SNE")
 		plt.show()

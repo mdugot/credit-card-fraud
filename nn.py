@@ -3,6 +3,7 @@ import tensorflow as tf
 from tqdm import tqdm
 from sklearn.manifold import TSNE
 import matplotlib.pyplot as plt
+import matplotlib.lines as mlines
 from sklearn.metrics import roc_auc_score
 
 class NeuralNetwork:
@@ -122,8 +123,8 @@ class NeuralNetwork:
 			trainCost.append(trainC)
 			testCost.append(testC)
 			xticks.append(reg)
-			reg += step
-		self.plotLines([trainCost, testCost], ["train cost", "test cost"], xticks)
+			reg *= step
+		self.plotLines([trainCost, testCost], ["train cost", "test cost"], xticks, "evolution of th train cost and test cost depending on the regularization factor")
 	
 	def roc_auc_score(self, labels, predictions):
 		return roc_auc_score(
@@ -171,17 +172,18 @@ class NeuralNetwork:
 		print("cost : " + str(cost))
 		#print("metric : " + str(metric))
 	
-	def plotLines(self, arrays, labels, xticks):
+	def plotLines(self, arrays, labels, xticks, title):
 		fig = plt.figure(figsize=(15, 8))
 		lines = []
 		for i in range(len(arrays)):
 			lines.append(plt.plot(arrays[i], label=labels[i]))
 
 		plt.xticks(np.arange(len(xticks)), xticks)
-		ax = plt.gca()
-		ax.tick_params(axis = 'x', which = 'major', labelsize = 6)
+		#ax = plt.gca()
+		#ax.tick_params(axis = 'x', which = 'major', labelsize = 6)
 		plt.legend(loc='upper left')
 		plt.tight_layout()
+		plt.title(title)
 		plt.show()
 	
 	def statsPlot(self, data, regularization = 0.0, keepProb = 1.0):
@@ -198,13 +200,15 @@ class NeuralNetwork:
 			self.regularization: regularization,
 			self.keepProb: keepProb
 		})
-		for limit in np.arange(0.01, 1.0, 0.02):
+		for limit in np.arange(0.00, 1.01, 0.05):
+			if limit >= 1.0:
+				limit = 0.99
 			p,r,f = self.stats(np.copy(predictions), np.copy(batchOutput), limit=limit)
 			f1s.append(f)
 			precisions.append(p)
 			recalls.append(r)
 			xticks.append(limit)
-		self.plotLines([precisions, recalls, f1s], ["precision", "recall", "f1 score"], xticks)
+		self.plotLines([precisions, recalls, f1s], ["precision", "recall", "f1 score"], xticks, "test accuracy (f1 score) depending on the dicrimination threshold")
 
 	def tsnePlot(self, data, limit = 0.5, regularization = 0.0, keepProb = 1.0):
 		batchInput, batchOutput = data.testBatch()
@@ -234,4 +238,10 @@ class NeuralNetwork:
 				else:
 					plt.plot(x, y, 'ro')
 			i += 1
+		gx = mlines.Line2D([], [], color='green', marker='x', linestyle='None', markersize=10, label='true negative')
+		rx = mlines.Line2D([], [], color='red', marker='x', linestyle='None', markersize=10, label='false negative')
+		go = mlines.Line2D([], [], color='green', marker='o', linestyle='None', markersize=10, label='true positive')
+		ro = mlines.Line2D([], [], color='red', marker='o', linestyle='None', markersize=10, label='false positive')
+		plt.legend(handles=[gx, rx, go, ro])
+		plt.title("Result of prediction on the datatest (visualization with t-SNE)")
 		plt.show()
